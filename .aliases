@@ -1,0 +1,59 @@
+# Docker経由でのRails開発のためのalias
+export _DOCKER_IMAGE="logbo_rails"
+export _DOCKER_CONTAINER="logbo_rails"
+export _RAILS_DIR="/rails_app"
+
+alias _d="docker"
+alias _g="git"
+
+# 掃除用
+alias _rm_all="docker rm -f \$(docker ps -aq)"
+alias _rm_images="docker rmi  \$(docker images -q)"
+
+# ビルド用
+alias _build="docker build -t \${_DOCKER_IMAGE} ."
+alias _rails_setup="docker run --rm -it -v \$(pwd)/rails_app:/rails_app \${_DOCKER_IMAGE} bash -c '/docker_init/rails_setup.sh'"
+alias _build_rails_setup="_build && _rails_setup"
+
+# コンテナ操作用_起動＆停止
+alias _run="docker run -it -d -p 3000:3000 -v \$(pwd)/share:/share -v \$(pwd)/rails_app:/rails_app --name \${_DOCKER_CONTAINER} \${_DOCKER_IMAGE}"
+alias _stop="docker stop \${_DOCKER_CONTAINER}"
+alias _restart="docker restart \${_DOCKER_CONTAINER}"
+alias _logs="docker logs \${_DOCKER_CONTAINER}"
+
+# コンテナ操作用_作業
+alias _bash="docker exec -it -w \${_RAILS_DIR} \${_DOCKER_CONTAINER} bash"
+alias __bash="docker run --rm -it -v \$(pwd)/share:/share -v \$(pwd)/rails_app:/rails_app \${_DOCKER_IMAGE} bash"
+alias _pg_bash="docker exec -it logbo_postgres bash"
+
+# rails操作用
+alias _rails_up="docker exec \${_DOCKER_CONTAINER} /share/bin/rails_up.sh"
+alias _rails_down="docker exec \${_DOCKER_CONTAINER} /share/bin/rails_down.sh"
+alias _ps="docker exec -it -w \${_RAILS_DIR} \${_DOCKER_CONTAINER} bash -c 'ps -ef f'"
+
+# サイトが立ち上がったかを確認する。
+function _ping() {
+  while ; do
+    curl -m 3 localhost:3000/logbo > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+      echo "Success!"
+      break
+    else
+      echo "Await..."
+      sleep 3
+    fi
+  done
+}
+
+# heroku用
+alias _heroku_push="git subtree push --prefix rails_app/ heroku main"
+alias _heroku_bash="heroku run bash"
+alias _heroku_console="heroku run IRB_USE_AUTOCOMPLETE=false bundle exec rails c"
+alias _heroku_db_seeds="heroku run rake db:seed"
+alias _heroku_db_reset="heroku pg:reset -a mandalin"
+alias _heroku_db_migrate="heroku run rake db:migrate"
+alias _heroku_apps="heroku apps"
+alias _heroku_app_create="heroku apps:create mandalin"
+alias _heroku_app_destroy="heroku apps:destroy -app mandalin"
+
+

@@ -1,0 +1,15 @@
+alias _ps="ps -ef f"
+alias vim_marks="vim_marks.rb > ~/._viminfo_marks"
+alias _puma_restart="bundle exec pumactl restart"
+alias _aseets_precompile="bundle exec rails assets:precompile"
+alias _rc="bundle exec rails c"
+alias _routes="bundle exec rails routes"
+
+# ディレクトリ移動
+alias _root="cd /rails_app/"
+alias _javascript="cd /rails_app/app/javascript/"
+alias _views="cd /rails_app/app/views/"
+alias _stylesheets="cd /rails_app/app/assets/stylesheets/"
+alias _builds="cd /rails_app/app/assets/builds/"
+alias _esbuild="clear; yarn build"
+

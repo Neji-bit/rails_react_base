@@ -1,0 +1,255 @@
+2023/05/03 Neji
+
+LogBo 開発環境セットアップメモ
+
+--------------------------------------------------------------------------------
+
+はじめに：
+  LogBo の開発を始めるにあたり、開発環境のセットアップを行う。
+  以下に、記録を残す。
+
+--------------------------------------------------------------------------------
+
+完成イメージ：
+
+* Docker で動くこと。
+* Rails7, Ruby3 系であること。
+* HTML記述には Slim を用いる。
+* JSバンドラには esbuild を用いる。
+  * React にて tsx を用いるため。Rails標準のimportmapはtsxに対応していない。
+* スタイル記述は scss である。
+  * ビルダーは dartsass を用いる。
+* DBは postgres。
+* 常駐プロセス管理は foremman。以下の３つを常駐させる。
+  web: bin/rails server -p 3000 -b 0.0.0.0
+  css: bin/rails dartsass:watch
+  js: yarn build --watch=forever
+
+--------------------------------------------------------------------------------
+
+Step1 Docker起動まで：
+
+----------------------------------------
+
+初期ファイルの配置：
+
+以下のファイルを配置する。
+  Dockerfile
+  docker-compose.yml
+  share/
+
+share/ 配下は、コンテナ内で実行するファイルがまとまっている（独自作成）。
+docker起動時、share/ は コンテナ内の /share にマウントされる。
+
+  share
+  ├── bin
+  │   ├── rails_down.sh   # railsを落とすスクリプト。
+  │   ├── rails_setup.sh  # Railsの初期設定スクリプト。初回に１度だけ実行。
+  │   └── rails_up.sh     # Railsを起動するスクリプト。２回目以降は、コンテナ起動時にこれが呼ばれる。
+  └── dotfiles
+      ├── .aliases        # コンテナ内で作業する用のalias
+      ├── .bashrc
+      ├── .irbrc
+      └── .vimrc
+
+----------------------------------------
+
+Dockerイメージのビルド：
+
+最終的に、コンテナは以下の２つを扱う。
+  logbo_rails : Railsイメージ。自前のDockerfileでビルドする。
+  logbo_postgres : 標準postgresイメージを使用。
+
+logbo_railsイメージのビルド：
+  docker build -t logbo_rails . --no-cache
+
+ビルド後のイメージ：
+  % docker images
+  REPOSITORY      TAG       IMAGE ID       CREATED       SIZE
+  logbo_rails     latest    8a0111be3fbb   4 weeks ago   1.62GB
+  postgres        latest    45ca3dd3a188   5 weeks ago   360MB
+
+----------------------------------------
+
+Dockerコンテナの起動：
+
+通常手順でdockerを起動。
+
+% docker-comopse up
+
+以下を確認できればOK.
+* コンテナの起動には成功する。
+* その後、logbo_rails はすぐに終了するはず（railsセットアップがされていないため、エラーとなる）
+
+--------------------------------------------------------------------------------
+
+Step2 railsセットアップ：
+
+セットアップの一連の流れは share/bin/rails_setup.sh に記載されている。
+途中で何度かコケさせ、修正し、再実行、を繰り返すスタイルとなっている。
+
+----------------------------------------
+rails コンテナを起動し、初期化スクリプトを実行させる。
+% docker-compose run rails /share/bin/rails_setup.sh
+-> 初回は「Gemfileが無い」で何もおこらず終了するはず。
+-> rails_app/ フォルダが作成されているはず。
+
+----------------------------------------
+
+rails_app/ 配下に、Gemfile を配置する。
+
+再度、初期化スクリプトを実行。
+% docker-compose run rails /share/bin/rails_setup.sh
+-> rails のインストールに成功する。
+-> 続けての「db:create」には失敗するはず。
+
+----------------------------------------
+
+rails_app/config/database.yml を、自前で用意したもの上書きする。
+
+再度、初期化スクリプトを実行。
+% docker-compose run rails /share/bin/rails_setup.sh
+-> セットアップが走り切る。
+-> logbo_development, logbo_test のDBが生成されていること。
+
+--------------------------------------------------------------------------------
+
+Step3 rails を実行させるための設定を追加：
+
+上記の rails_setup.sh 完了後は、rails_up.sh を実行させ、実際のrailsプロセスを立ち上げる。
+この時、一部ファイルをまた配置／上書きする必要がある。
+
+# 追加Gemの設定ファイルを配置
+rails_app/config/initializers/dartpass.rb
+  監視対象のファイル（＝scss）が置かれているパス、およびトランスパイル結果の配置場所を指定。
+rails_app/config/initializers/devise.rb
+  認証系のオプションを指定。
+
+# foreman系のファイルを上書き
+rails_app/bin/dev
+  foreman用の実行スクリプト。内容は標準でOK。
+rails_app/Procfile.dev
+  railsサーバ, dartsass, esbuild の３点について、常駐設定が入っていること。
+rails_app/package.json
+  esbuild用のタスクが定義されていることを確認。
+
+ここまで設定したら、改めてdockerを起動する
+
+% docker-compose up
+
+※ここで、dartsassが見つからない等のエラーが出たら /rails_app/Gemfile が何かの副作用で書き換えられていないか確認する。
+書き換えられてしまっていたら、本来のGemfileに置換し、rails_setup.sh を再実行。
+
+railsが起動し、 http://localhost:3000 で初期ページが参照できるようになっているはず。
+
+--------------------------------------------------------------------------------
+
+Step4 既存のerbファイルをslimに変換する：
+
+rails/app/views/layouts/ 配下に *.html.erb があるので、これらを *.html.slim に変換する。
+
+* logbo_rails コンテナにログイン
+  cd /rails_app
+* Gemfile に変換Gemを追記し、インストール
+  echo 'gem "html2slim", github: "slim-template/html2slim"' >> Gemfile
+  bundle install
+* 実行
+  bundle exec erb2slim app/views/ --delete
+* html2slim をGemfileから削除
+
+--------------------------------------------------------------------------------
+
+Step5 サンプルページの作成と変更：
+
+サンプルページを作成し、以下を確認する
+* ブラウザから表示されること
+* スタイルのトランスパイル監視が効いていること
+* jsxのトランスパイル監視が効いていること
+
+----------------------------------------
+
+開発環境で「assetsの更新が直ちにブラウザに反映される」ようにする
+
+* 以下の設定の追加。
+  rails_app/config/environments/development.rb
+    # 開発用。アセットのソースマップを有効にする。
+    config.assets.debug = true
+
+----------------------------------------
+
+esbuild の初運転
+
+* esbuild を初期化する
+  bundle exec rails javascript:install:esbuild
+
+* jsxビルド用のyarn準備
+  mkdir /rails_app/javascript/pwa
+  touch /rails_app/javascript/pwa/pwa.jsx
+  yarn build
+  -> jsの作成に成功すること。
+
+----------------------------------------
+
+scss の初運転
+
+* dartsass を初期化する
+  bundle exec rails dartsass:install
+
+* コンフィグにcssの情報を追記
+  /rails_app/config/initializers/assets.rb
+    Rails.application.config.assets.precompile += %w( pwa.css )
+
+----------------------------------------
+
+サンプルページの作成
+
+* route の追加
+  rails_app/config/routes.rb
+    get "app" => "pwa#app"
+
+* controller の追加
+  rails_app/app/controllers/pwa_controller.rb
+    class PwaController < ApplicationController
+      def app
+      end
+    end
+
+* view の追加
+  rails_app/app/views/pwa/app.html.slim
+
+* layout の追加
+  rails_app/app/views/layouts/pwa.html.slim
+    doctype html
+    html
+      head
+        title
+          | LogBo
+        meta[name="viewport" content="width=device-width,initial-scale=1"]
+        = csrf_meta_tags
+        = csp_meta_tag
+        = stylesheet_link_tag "pwa/pwa", "data-turbo-track": "reload"
+        = javascript_include_tag "pwa/pwa", "data-turbo-track": "reload", defer: true
+        = favicon_link_tag "logbo.svg"
+      body
+        #root
+        #test
+          | test
+        = yield
+
+css, js のトランスパイルおよび参照が正常に行われていれば、ここでサンプルページが表示できる。
+layout におけるアセットの参照（stylesheet_link_tag, javascript_include_tag）について、
+指定ファイルが存在しないとSprocketsエラーになる。その際は、_tagで指定したパスに
+css, js の実体が配置されているかを確認すること。
+上記の例だと "rails_app/assets/builds/pwa/pwa.css", "rails_app/asstes/builds/pwa/pwa.js"。
+
+--------------------------------------------------------------------------------
+
+Step6 React のセットアップ：
+
+* Reactをインストールする
+    npm i react react-dom
+
+* jsxに記載したReactの内容が画面に反映されること。
+
+--------------------------------------------------------------------------------
+
