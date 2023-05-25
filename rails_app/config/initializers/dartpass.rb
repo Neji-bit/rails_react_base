@@ -1,3 +1,3 @@
 Rails.application.config.dartsass.builds = {
-  "pwa.scss" => "pwa.css",
+  "app.scss" => "app.css",
 }

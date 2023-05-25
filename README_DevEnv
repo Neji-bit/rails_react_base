@@ -1,11 +1,11 @@
 2023/05/03 Neji
 
-LogBo 開発環境セットアップメモ
+Rails7 & Reactt18 開発環境セットアップメモ
 
 --------------------------------------------------------------------------------
 
 はじめに：
-  LogBo の開発を始めるにあたり、開発環境のセットアップを行う。
+  Rails & React の開発を始めるにあたり、開発環境のセットアップを行う。
   以下に、記録を残す。
 
 --------------------------------------------------------------------------------
@@ -57,16 +57,16 @@ docker起動時、share/ は コンテナ内の /share にマウントされる�
 Dockerイメージのビルド：
 
 最終的に、コンテナは以下の２つを扱う。
-  logbo_rails : Railsイメージ。自前のDockerfileでビルドする。
-  logbo_postgres : 標準postgresイメージを使用。
+  rr_base_rails : Railsイメージ。自前のDockerfileでビルドする。
+  rr_base_postgres : 標準postgresイメージを使用。
 
-logbo_railsイメージのビルド：
-  docker build -t logbo_rails . --no-cache
+rr_base_railsイメージのビルド：
+  docker build -t rr_base_rails . --no-cache
 
 ビルド後のイメージ：
   % docker images
   REPOSITORY      TAG       IMAGE ID       CREATED       SIZE
-  logbo_rails     latest    8a0111be3fbb   4 weeks ago   1.62GB
+  rr_base_rails   latest    8a0111be3fbb   4 weeks ago   1.62GB
   postgres        latest    45ca3dd3a188   5 weeks ago   360MB
 
 ----------------------------------------
@@ -75,11 +75,11 @@ Dockerコンテナの起動：
 
 通常手順でdockerを起動。
 
-% docker-comopse up
+% docker-compose up
 
 以下を確認できればOK.
 * コンテナの起動には成功する。
-* その後、logbo_rails はすぐに終了するはず（railsセットアップがされていないため、エラーとなる）
+* その後、rr_base_rails はすぐに終了するはず（railsセットアップがされていないため、エラーとなる）
 
 --------------------------------------------------------------------------------
 
@@ -110,7 +110,7 @@ rails_app/config/database.yml を、自前で用意したもの上書きする�
 再度、初期化スクリプトを実行。
 % docker-compose run rails /share/bin/rails_setup.sh
 -> セットアップが走り切る。
--> logbo_development, logbo_test のDBが生成されていること。
+-> rr_base_development, rr_base_test のDBが生成されていること。
 
 --------------------------------------------------------------------------------
 
@@ -148,7 +148,7 @@ Step4 既存のerbファイルをslimに変換する：
 
 rails/app/views/layouts/ 配下に *.html.erb があるので、これらを *.html.slim に変換する。
 
-* logbo_rails コンテナにログイン
+* rr_base_rails コンテナにログイン
   cd /rails_app
 * Gemfile に変換Gemを追記し、インストール
   echo 'gem "html2slim", github: "slim-template/html2slim"' >> Gemfile
@@ -223,13 +223,13 @@ scss の初運転
     html
       head
         title
-          | LogBo
+          | Base
         meta[name="viewport" content="width=device-width,initial-scale=1"]
         = csrf_meta_tags
         = csp_meta_tag
         = stylesheet_link_tag "pwa/pwa", "data-turbo-track": "reload"
         = javascript_include_tag "pwa/pwa", "data-turbo-track": "reload", defer: true
-        = favicon_link_tag "logbo.svg"
+        = favicon_link_tag "rr_base.svg"
       body
         #root
         #test
