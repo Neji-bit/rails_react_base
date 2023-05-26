@@ -34,7 +34,7 @@ alias _ps="docker exec -it -w \${_RAILS_DIR} \${_DOCKER_CONTAINER} bash -c 'ps -
 # サイトが立ち上がったかを確認する。
 function _ping() {
   while ; do
-    curl -m 3 localhost:3000/rr_base > /dev/null 2>&1
+    curl -m 3 localhost:3000/app > /dev/null 2>&1
     if [ $? -eq 0 ]; then
       echo "Success!"
       break
