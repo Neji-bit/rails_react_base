@@ -4,11 +4,14 @@
 
 eval "$(rbenv init -)"
 
+cd $_RAILS_DIR
+
 # reactインストール
 yarn add react react-dom axios html-react-parser react-markdown remark-gfm rehype-raw rehype-sanitize
+# jest系インストール（本体、babel、react対応、TypeScript対応）
+yarn add --dev jest babel-jest @babel/core @babel/preset-env @babel/preset-react react-test-renderer @babel/preset-typescript
 
 # Bundler経由でのrailsインストール
-cd $_RAILS_DIR
 bundle init
 bundle install --path vendor/bundle
 # Rails は bundler 配下の管理とする。
